@@ -253,7 +253,7 @@ static void handler(void *args)
 
 		if (wifi_is_connected()) {
 			int sockfd = connect_to_ota_server();
-			if (sockfd > 0) {
+			if (sockfd >= 0) {
 				start_update_process(sockfd);
 				close(sockfd);
 			}
