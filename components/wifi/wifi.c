@@ -120,15 +120,20 @@ int connect_to_server(int *socketfd, const char *server, uint32_t port)
 		.sin_family = AF_INET,
 		.sin_port = htons(port),
 	};
+	int tmp;
 
 	dest.sin_addr.s_addr = inet_addr(server);
 
-	*socketfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (*socketfd < 0)
+	tmp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (tmp < 0)
 		return errno;
 
-	if (connect(*socketfd, (struct sockaddr *)&dest, sizeof(dest)))
+	if (connect(tmp, (struct sockaddr *)&dest, sizeof(dest))) {
+		close(tmp);
 		return errno;
+	}
+
+	*socketfd = tmp;
 	return 0;
 }
 
