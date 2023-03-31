@@ -146,11 +146,13 @@ esp_err_t i2c::write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
 		goto ret;
 	}
 
-	res = i2c_master_write(handle, buf, size, I2C_MASTER_ACK);
-	if (res) {
-		ESP_LOGE(bus_name, "I2C write error: %s",
-			esp_err_to_name(res));
-		goto ret;
+	if (buf) {
+		res = i2c_master_write(handle, buf, size, I2C_MASTER_ACK);
+		if (res) {
+			ESP_LOGE(bus_name, "I2C write error: %s",
+				esp_err_to_name(res));
+			goto ret;
+		}
 	}
 
 	res = i2c_master_stop(handle);
