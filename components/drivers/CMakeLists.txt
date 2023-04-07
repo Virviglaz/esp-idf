@@ -6,7 +6,6 @@ set(srcs
 	"esp_buttons.cpp"
 	"esp_encoder.cpp"
 	"esp_stepper.cpp"
-	"esp32_i2c.cpp"
 	"esp32_spi.cpp"
 )
 
