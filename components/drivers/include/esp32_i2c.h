@@ -42,6 +42,9 @@
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
+#ifndef __ESP32_I2C_H__
+#define __ESP32_I2C_H__
+
 /* FreeRTOS */
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -417,3 +420,5 @@ private:
 		return ESP_ERR_INVALID_STATE;
 	}
 };
+
+#endif /* __ESP32_I2C_H__ */

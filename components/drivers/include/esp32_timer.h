@@ -42,6 +42,9 @@
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
+#ifndef __ESP32_TIMER_H__
+#define __ESP32_TIMER_H__
+
 /* IDF Drivers */
 #include "esp_timer.h"
 
@@ -142,3 +145,4 @@ private:
 	}
 };
 
+#endif /* __ESP32_TIMER_H__ */
