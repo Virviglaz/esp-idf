@@ -47,6 +47,12 @@
 
 /* IDF Drivers */
 #include "esp_timer.h"
+#include "driver/gpio.h"
+#include "hal/gpio_ll.h"
+
+/* FreeRTOS */
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 /**
  * @brief Calls the callback after timeout expired.
@@ -143,6 +149,93 @@ private:
 		delayed_action *m = (delayed_action *)args;
 		m->_action(m->_user_data);
 	}
+};
+
+class freq_meter
+{
+public:
+	freq_meter() {}
+
+	freq_meter(uint32_t pin, bool pos_edge = true)
+	{
+		init(pin, pos_edge);
+	}
+
+	~freq_meter()
+	{
+		gpio_isr_handler_remove((gpio_num_t)_pin);
+		gpio_reset_pin((gpio_num_t)_pin);
+	}
+
+	void init(uint32_t pin, bool pos_edge = true)
+	{
+		ESP_ERROR_CHECK(gpio_reset_pin((gpio_num_t)pin));
+		ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)pin,
+			GPIO_MODE_INPUT));
+		ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)pin,
+			GPIO_INTR_ANYEDGE));
+		gpio_install_isr_service(0);
+		ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)pin,
+			isr_callback, this));
+		_pin = pin;
+		_pos_edge = pos_edge;
+	}
+
+	int64_t get_duty()
+	{
+		return trigger;
+	}
+
+	template <typename T> T get_frequency()
+	{
+		if (trigger > 0)
+			return (T)1000000 / (T)trigger;
+		else
+			return (T)0;
+	}
+
+	void wait_for_result()
+	{
+		if (trigger > 0)
+			return;
+
+		task_handle = xTaskGetCurrentTaskHandle();
+
+		vTaskSuspend(nullptr);
+
+		trigger = -1;
+	}
+
+private:
+	static void isr_callback(void *arg)
+	{
+		freq_meter *c = static_cast<freq_meter *>(arg);
+		int state = gpio_ll_get_level(&GPIO, c->_pin);
+
+		if (state == c->_prev_state)
+			return;
+
+		c->_prev_state = state;
+
+		state = c->_pos_edge ? state : !state;
+
+		if (state)
+			c->timestamp = esp_timer_get_time();
+		else
+			c->trigger = esp_timer_get_time() -
+					c->timestamp;
+		if (c->task_handle) {
+			xTaskResumeFromISR(c->task_handle);
+			c->task_handle = nullptr;
+		}
+	}
+
+	int _pin;
+	bool _pos_edge;
+	int _prev_state;
+	int64_t timestamp;
+	int64_t trigger = -1;
+	TaskHandle_t task_handle = nullptr;
 };
 
 #endif /* __ESP32_TIMER_H__ */

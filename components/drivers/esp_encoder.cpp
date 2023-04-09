@@ -121,8 +121,7 @@ encoder::encoder(int a, int b)
 	enc_a = a;
 	enc_b = b;
 
-	gpio_uninstall_isr_service();
-	ERR_RTN(gpio_install_isr_service(0));
+	gpio_install_isr_service(0);
 	ERR_RTN(gpio_config((gpio_num_t)enc_a));
 	ERR_RTN(gpio_config((gpio_num_t)enc_b));
 	ERR_RTN(gpio_isr_handler_add((gpio_num_t)enc_a, encoder::isr_a, this));
