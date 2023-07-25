@@ -72,7 +72,7 @@ enum lcd_cmd {
 };
 
 #ifndef LCD_DELAY_LOW
-#define LCD_DELAY_LOW					50
+#define LCD_DELAY_LOW					20
 #endif
 
 #ifndef LCD_DELAY_HIGH

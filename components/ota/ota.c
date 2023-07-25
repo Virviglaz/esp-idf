@@ -38,6 +38,7 @@ static uint32_t fw_file_size = 0;
 static uint32_t total_bytes = 0;
 static bool is_confirmed = false;
 static bool is_running = false;
+static bool busy = false;
 static SemaphoreHandle_t wait;
 
 static int get_latest_version(int sockfd, char *server_version,
@@ -135,21 +136,26 @@ static void start_update_process(int sockfd)
 	ESP_LOGI(tag, "Starting SW update from %s to %s",
 		s->version, server_version);
 
+	busy = true;
+
 	ESP_GOTO_ON_ERROR(nvs_flash_init(), fail, tag, "nvs init failed");
 
 	partition = esp_ota_get_next_update_partition(0);
 	if (!partition) {
 		ESP_LOGE(tag, "No OTA partition found. SW update aborted");
+		busy = false;
 		return;
 	}
 	partition = esp_partition_verify(partition);
 	if (!partition) {
 		ESP_LOGE(tag, "Partition validation failed");
+		busy = false;
 		return;
 	}
 
 	if (!is_ota_partition(partition)) {
 		ESP_LOGE(tag, "Not an OTA partition");
+		busy = false;
 		return;
 	}
 
@@ -157,6 +163,7 @@ static void start_update_process(int sockfd)
 		esp_ota_get_running_partition();
 	if (partition == running_partition) {
 		ESP_LOGE(tag, "Cannot update running partition");
+		busy = false;
 		return;
 	}
 
@@ -216,6 +223,7 @@ no_mem:
 fail:
 	if (s->gpio_ota_cancel_workaround)
 		s->gpio_ota_cancel_workaround();
+	busy = false;
 	return;
 }
 
@@ -322,4 +330,9 @@ int ota_stop(void)
 
 	xSemaphoreGive(wait);
 	return 0;
+}
+
+bool ota_check_busy(void)
+{
+	return busy;
 }
