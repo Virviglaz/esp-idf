@@ -3,7 +3,6 @@ idf_build_get_property(target IDF_TARGET)
 set(srcs
 	"ltc6804.c"
 	"HD44780.c"
-	"esp_encoder.cpp"
 	"esp_stepper.cpp"
 	"esp32_spi.cpp"
 )

@@ -2,6 +2,7 @@
 #define __OTA_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * @brief OTA initialization settings struct.
@@ -60,6 +61,14 @@ int ota_confirm(void);
  * @return int 0 if success, error code if fail.
  */
 int ota_stop(void);
+
+/**
+ * @brief Check update is running.
+ *
+ * @return true if update is in progress.
+ * @return false if not.
+ */
+bool ota_check_busy(void);
 
 #ifdef __cplusplus
 }

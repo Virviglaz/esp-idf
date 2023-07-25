@@ -63,7 +63,7 @@
 #define BUTTONS_TASK_SIZE		2048
 #endif
 
-class buttons
+class Buttons
 {
 public:
 	/**
@@ -74,7 +74,7 @@ public:
 	*			-1 if let the RTOS choose.
 	* @param prio		Task priority.
 	*/
-	buttons(uint interval_ms = 100,
+	Buttons(uint interval_ms = 100,
 		const char *name = "Buttons",
 		int core = -1,
 		uint prio = 1)
@@ -84,6 +84,9 @@ public:
 
 		alive = xSemaphoreCreateBinary();
 		ESP_ERROR_CHECK(alive == nullptr);
+
+		waiter = xSemaphoreCreateBinary();
+		ESP_ERROR_CHECK(waiter == nullptr);
 
 		poll_interval = interval_ms;
 
@@ -100,13 +103,14 @@ public:
 	/**
 	 * @brief Destroy the buttons object.
 	 */
-	~buttons() {
+	~Buttons() {
 		/* Call self destructor */
 		is_active = false;
 
 		/* Wait self for completion */
 		xSemaphoreTake(alive, portMAX_DELAY);
 		vSemaphoreDelete(alive);
+		vSemaphoreDelete(waiter);
 	}
 
 	/**
@@ -156,15 +160,19 @@ public:
 	/**
 	 * @brief Wait for trigger.
 	 *
-	 * @return int		Index of button pressed.
+	 * @param timeout_ms	Timeout in [ms].
+	 *
+	 * @return int		Positive value: index of button pressed.
+	 *			Negative value: error code.
 	 */
-	int wait_for_action() {
-		if (waiter)
-			return -1; /* already occupied */
-		waiter = xTaskGetCurrentTaskHandle();
-		vTaskSuspend(nullptr);
-		waiter = nullptr;
-		return pressed;
+	int wait_for_action(uint32_t timeout_ms = 0) {
+		if (!timeout_ms)
+			timeout_ms = portMAX_DELAY;
+
+		if (xSemaphoreTake(waiter, pdMS_TO_TICKS(timeout_ms)) == pdTRUE)
+			return pressed;
+
+		return -ETIMEDOUT;
 	}
 
 	/**
@@ -187,7 +195,7 @@ private:
 	};
 
 	static void handler(void *param) {
-		buttons *s = static_cast<buttons *>(param);
+		Buttons *s = static_cast<Buttons *>(param);
 
 		while (s->is_active) {
 			vTaskDelay(pdMS_TO_TICKS(s->poll_interval));
@@ -214,32 +222,24 @@ private:
 		vTaskDelete(nullptr);
 	}
 
-	static void call_handler(buttons *s, struct button *btn) {
+	static void call_handler(Buttons *s, struct button *btn) {
 		if (btn->callback)
 			btn->callback(btn->param);
 
 		/* Store the pressed button index */
 		s->pressed = btn->index;
 
-		/* Cheeck task is waiting for the trigger */
-		if (s->waiter) {
-			/* Solve race condition */
-			if (eTaskGetState(s->waiter) != eSuspended)
-				return;
-
-			/* Wake-up the waiter */
-			vTaskResume(s->waiter);
-		}
+		xSemaphoreGive(s->waiter);
 	}
 
 	std::vector<struct button *> list = { };
 	uint poll_interval;
-	TaskHandle_t waiter = nullptr;
 	bool is_active = true;
 	int index = 0;
 	int pressed = -1;
 	SemaphoreHandle_t lock;
 	SemaphoreHandle_t alive;
+	SemaphoreHandle_t waiter;
 };
 
 #endif /* __ESP_BUTTONS_H__ */
