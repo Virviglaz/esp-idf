@@ -45,6 +45,8 @@
 #ifndef __ESP32_TIMER_H__
 #define __ESP32_TIMER_H__
 
+#include <errno.h>
+
 /* IDF Drivers */
 #include "esp_timer.h"
 #include "driver/gpio.h"
@@ -132,6 +134,7 @@ public:
 			.name = __func__,
 			.skip_unhandled_events = true,
 		};
+
 		ESP_ERROR_CHECK(esp_timer_create(&config, &handle));
 		_action = action;
 		_user_data = user_data;
@@ -156,19 +159,18 @@ class freq_meter
 public:
 	freq_meter() {}
 
-	freq_meter(uint32_t pin, bool pos_edge = true)
-	{
+	freq_meter(uint32_t pin, bool pos_edge = true) {
 		init(pin, pos_edge);
 	}
 
-	~freq_meter()
-	{
+	~freq_meter() {
 		gpio_isr_handler_remove((gpio_num_t)_pin);
 		gpio_reset_pin((gpio_num_t)_pin);
 	}
 
-	void init(uint32_t pin, bool pos_edge = true)
-	{
+	void init(uint32_t pin, bool pos_edge = true) {
+		waiter = xSemaphoreCreateBinary();
+		ESP_ERROR_CHECK(waiter == nullptr);
 		ESP_ERROR_CHECK(gpio_reset_pin((gpio_num_t)pin));
 		ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)pin,
 			GPIO_MODE_INPUT));
@@ -181,29 +183,39 @@ public:
 		_pos_edge = pos_edge;
 	}
 
-	int64_t get_duty()
-	{
+	int64_t get_duty() {
 		return trigger;
 	}
 
-	template <typename T> T get_frequency()
-	{
+	template <typename T> T get_frequency() {
 		if (trigger > 0)
 			return (T)1000000 / (T)trigger;
 		else
 			return (T)0;
 	}
 
-	void wait_for_result()
-	{
-		if (trigger > 0)
-			return;
+	/**
+	 * @brief Wait for trigger.
+	 *
+	 * @param timeout_ms	Timeout in [ms].
+	 *
+	 * @return int		0 on success, error code if failed.
+	 */
+	int wait(uint32_t timeout_ms = 0) {
+		if (!timeout_ms)
+			timeout_ms = portMAX_DELAY;
 
-		task_handle = xTaskGetCurrentTaskHandle();
+		if (xSemaphoreTake(waiter, pdMS_TO_TICKS(timeout_ms)) == pdTRUE)
+			return 0;
 
-		vTaskSuspend(nullptr);
+		return -ETIMEDOUT;
+	}
 
-		trigger = -1;
+	uint32_t get_count(bool clear = false) {
+		uint32_t ret = cnt;
+		if (clear)
+			cnt = 0;
+		return ret;
 	}
 
 private:
@@ -215,6 +227,7 @@ private:
 		if (state == c->_prev_state)
 			return;
 
+		c->cnt++;
 		c->_prev_state = state;
 
 		state = c->_pos_edge ? state : !state;
@@ -224,10 +237,7 @@ private:
 		else
 			c->trigger = esp_timer_get_time() -
 					c->timestamp;
-		if (c->task_handle) {
-			xTaskResumeFromISR(c->task_handle);
-			c->task_handle = nullptr;
-		}
+		xSemaphoreGiveFromISR(c->waiter, NULL);
 	}
 
 	int _pin;
@@ -235,7 +245,8 @@ private:
 	int _prev_state;
 	int64_t timestamp;
 	int64_t trigger = -1;
-	TaskHandle_t task_handle = nullptr;
+	uint32_t cnt = 0;
+	SemaphoreHandle_t waiter;
 };
 
 #endif /* __ESP32_TIMER_H__ */
