@@ -165,7 +165,7 @@ public:
 	 * @return int		Positive value: index of button pressed.
 	 *			Negative value: error code.
 	 */
-	int wait_for_action(uint32_t timeout_ms = 0) {
+	int wait(uint32_t timeout_ms = 0) {
 		if (!timeout_ms)
 			timeout_ms = portMAX_DELAY;
 
