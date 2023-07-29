@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <vector>
+#include <errno.h>
 
 #ifndef SIMULATION
 #include "driver/gpio.h"
@@ -21,10 +22,6 @@
 #define STP_GPIO_SET(p, s)		0
 #define DBG(format, ...)		0
 #endif /* SIMULATION*/
-
-#ifndef ERR_RTN
-#define ERR_RTN(x)	res = (x); if (res) return res;
-#endif /* ERR_RTN */
 
 #define MIN(x, y)	(x) < (y) ? (x) : (y)
 #define MAX(x, y)	(x) > (y) ? (x) : (y)
@@ -48,6 +45,8 @@ public:
 		clear();
 		esp_timer_stop(handle);
 		esp_timer_delete(handle);
+		if (waiter)
+			vSemaphoreDelete(waiter);
 	}
 
 	int init() {
@@ -59,16 +58,18 @@ public:
 			.skip_unhandled_events = true,
 		};
 		
-		int res;
-		ERR_RTN(STP_GPIO_RESET(_ena_pin));
-		ERR_RTN(STP_GPIO_RESET(_clk_pin));
-		ERR_RTN(STP_GPIO_RESET(_dir_pin));
+		ESP_ERROR_CHECK(STP_GPIO_RESET(_ena_pin));
+		ESP_ERROR_CHECK(STP_GPIO_RESET(_clk_pin));
+		ESP_ERROR_CHECK(STP_GPIO_RESET(_dir_pin));
 
-		ERR_RTN(STP_GPIO_INIT(_ena_pin));
-		ERR_RTN(STP_GPIO_INIT(_clk_pin));
-		ERR_RTN(STP_GPIO_INIT(_dir_pin));
+		ESP_ERROR_CHECK(STP_GPIO_INIT(_ena_pin));
+		ESP_ERROR_CHECK(STP_GPIO_INIT(_clk_pin));
+		ESP_ERROR_CHECK(STP_GPIO_INIT(_dir_pin));
 		
-		ERR_RTN(esp_timer_create(&config, &handle));
+		ESP_ERROR_CHECK(esp_timer_create(&config, &handle));
+
+		waiter = xSemaphoreCreateBinary();
+		ESP_ERROR_CHECK(waiter == nullptr);
 
 		/* acceleration */
 		acc_step_per_us = _acc / 1E12;
@@ -147,11 +148,21 @@ public:
 		esp_timer_start_once(handle, _pos_clk_us);
 	}
 
-	void wait() {
-		if (!is_running())
-			return;
-		caller = xTaskGetCurrentTaskHandle();
-		vTaskSuspend(NULL);
+	/**
+	 * @brief Wait for trigger.
+	 *
+	 * @param timeout_ms	Timeout in [ms].
+	 *
+	 * @return int		0 on success, error code if failed.
+	 */
+	int wait(uint32_t timeout_ms = 0) {
+		if (!timeout_ms)
+			timeout_ms = portMAX_DELAY;
+
+		if (xSemaphoreTake(waiter, pdMS_TO_TICKS(timeout_ms)) == pdTRUE)
+			return 0;
+
+		return -ETIMEDOUT;
 	}
 
 	bool is_running() {
@@ -189,10 +200,7 @@ private:
 				m->force_stop = true;
 		}
 
-		if (m->caller) {
-			vTaskResume(m->caller);
-			m->caller = nullptr;
-		}
+		xSemaphoreGiveFromISR(m->waiter, NULL);
 	}
 
 	class Segment {
@@ -291,7 +299,7 @@ private:
 
 	esp_timer_handle_t handle;
 	std::vector<Segment *> job;
-	TaskHandle_t caller = nullptr;
+	SemaphoreHandle_t waiter = nullptr;
 	bool force_stop = false;
 	bool (*_check_stop)(bool CW);
 };

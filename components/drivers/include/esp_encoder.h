@@ -55,6 +55,7 @@
 
 #include <stdint.h>
 #include <limits>
+#include <errno.h>
 
 /**
  * @brief Encoder reading class.
@@ -94,6 +95,8 @@ public:
 
 		gpio_reset_pin((gpio_num_t)enc_a);
 		gpio_reset_pin((gpio_num_t)enc_b);
+		if (waiter)
+			vSemaphoreDelete(waiter);
 	}
 
 	/**
@@ -102,7 +105,7 @@ public:
 	 * @param pin_a		GPIO number of encoder A pin.
 	 * @param pin_b		GPIO number of encoder B pin.
 	 */
-	void init(int pin_a, int pin_b, enum PullUp pull_up) {
+	void init(int pin_a, int pin_b, enum PullUp pull_up = NONE) {
 		if (init_done)
 			return;
 
@@ -114,6 +117,8 @@ public:
 		gpio_config(enc_b, pull_up);
 		ESP_ERROR_CHECK(gpio_isr_handler_add(enc_a, isr_a, this));
 		ESP_ERROR_CHECK(gpio_isr_handler_add(enc_b, isr_b, this));
+		waiter = xSemaphoreCreateBinary();
+		ESP_ERROR_CHECK(waiter == nullptr);
 		init_done = true;
 	}
 
@@ -163,27 +168,22 @@ public:
 	}
 
 	/**
-	 * @brief Wait for value change.
+	 * @brief Wait for trigger.
 	 *
-	 * @note Put calling task on hold until value is changed.
-	 * @return T		Actual encoder value.
+	 * @param timeout_ms	Timeout in [ms].
+	 *
+	 * @return int		0 on success, error code if failed.
 	 */
-	T wait_for_action() {
-		if (waiter)
-			return value; /* already occupied */
-		waiter = xTaskGetCurrentTaskHandle();
-		vTaskSuspend(nullptr);
-		waiter = nullptr;
-		return value;
+	int wait(uint32_t timeout_ms = 0) {
+		if (!timeout_ms)
+			timeout_ms = portMAX_DELAY;
+
+		if (xSemaphoreTake(waiter, pdMS_TO_TICKS(timeout_ms)) == pdTRUE)
+			return 0;
+
+		return -ETIMEDOUT;
 	}
 
-	/**
-	 * @brief Force waiting task to wake-up.
-	*/
-	void wake_up() {
-		if (waiter)
-			vTaskResume(waiter);
-	}
 private:
 	static void gpio_config(int g, enum PullUp pull_up)
 	{
@@ -206,15 +206,7 @@ private:
 
 	static void wakeup(Encoder *e)
 	{
-		/* Cheeck task is waiting for the trigger */
-		if (e->waiter) {
-			/* Solve race condition */
-			if (eTaskGetState(e->waiter) != eSuspended)
-				return;
-
-			/* Wake-up the waiter */
-			xTaskResumeFromISR(e->waiter);
-		}
+		xSemaphoreGiveFromISR(e->waiter, NULL);
 	}
 
 	static void check_limit(Encoder *e)
@@ -272,7 +264,7 @@ private:
 	T step = 1;
 	T min = std::numeric_limits<T>::min();
 	T max = std::numeric_limits<T>::max();
-	TaskHandle_t waiter = nullptr;
+	SemaphoreHandle_t waiter = nullptr;
 };
 
 #endif /* __ENCODER_H__ */
