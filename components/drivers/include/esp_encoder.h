@@ -64,6 +64,8 @@
 template <typename T> class Encoder
 {
 public:
+	enum PullUp { NONE, PULL_UP, PULL_DOWN };
+
 	/**
 	 * @brief Default construct a new Encoder object.
 	 *
@@ -77,8 +79,8 @@ public:
 	 * @param pin_a		GPIO number of encoder A pin.
 	 * @param pin_b		GPIO number of encoder B pin.
 	 */
-	Encoder(int pin_a, int pin_b) {
-		init(pin_a, pin_b);
+	Encoder(int pin_a, int pin_b, enum PullUp pull_up = NONE) {
+		init(pin_a, pin_b, pull_up);
 	}
 
 	/**
@@ -100,7 +102,7 @@ public:
 	 * @param pin_a		GPIO number of encoder A pin.
 	 * @param pin_b		GPIO number of encoder B pin.
 	 */
-	void init(int pin_a, int pin_b) {
+	void init(int pin_a, int pin_b, enum PullUp pull_up) {
 		if (init_done)
 			return;
 
@@ -108,8 +110,8 @@ public:
 		enc_b = (gpio_num_t)pin_b;
 
 		gpio_install_isr_service(0);
-		gpio_config(enc_a);
-		gpio_config(enc_b);
+		gpio_config(enc_a, pull_up);
+		gpio_config(enc_b, pull_up);
 		ESP_ERROR_CHECK(gpio_isr_handler_add(enc_a, isr_a, this));
 		ESP_ERROR_CHECK(gpio_isr_handler_add(enc_b, isr_b, this));
 		init_done = true;
@@ -183,12 +185,22 @@ public:
 			vTaskResume(waiter);
 	}
 private:
-	static void gpio_config(int g)
+	static void gpio_config(int g, enum PullUp pull_up)
 	{
 		ESP_ERROR_CHECK(gpio_reset_pin((gpio_num_t)g));
 		ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)g, GPIO_MODE_INPUT));
-		ESP_ERROR_CHECK(gpio_set_pull_mode((gpio_num_t)g, GPIO_PULLUP_ONLY));
-		ESP_ERROR_CHECK(gpio_pullup_en((gpio_num_t)g));
+		switch (pull_up) {
+		case NONE:
+			break;
+		case PULL_UP:
+			ESP_ERROR_CHECK(gpio_set_pull_mode((gpio_num_t)g, GPIO_PULLUP_ONLY));
+			ESP_ERROR_CHECK(gpio_pullup_en((gpio_num_t)g));
+			break;
+		case PULL_DOWN:
+			ESP_ERROR_CHECK(gpio_set_pull_mode((gpio_num_t)g, GPIO_PULLDOWN_ONLY));
+			ESP_ERROR_CHECK(gpio_pullup_en((gpio_num_t)g));
+			break;
+		}
 		ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)g, GPIO_INTR_POSEDGE));
 	}
 
