@@ -52,10 +52,13 @@
 
 /* ESP32 */
 #include <driver/gpio.h>
+#include "hal/gpio_ll.h"
 
 #include <stdint.h>
 #include <limits>
 #include <errno.h>
+
+#define ENC_GPIO_READ(x)		gpio_ll_get_level(&GPIO, (x))
 
 /**
  * @brief Encoder reading class.
@@ -79,6 +82,7 @@ public:
 	 *
 	 * @param pin_a		GPIO number of encoder A pin.
 	 * @param pin_b		GPIO number of encoder B pin.
+	 * @param pull_up	Enable or disable the pull up or pull down load.
 	 */
 	Encoder(int pin_a, int pin_b, enum PullUp pull_up = NONE) {
 		init(pin_a, pin_b, pull_up);
@@ -88,11 +92,7 @@ public:
 	 * @brief Destroy the Encoder object.
 	 */
 	~Encoder() {
-		if (!init_done)
-			return;
-
 		gpio_isr_handler_remove((gpio_num_t)enc_a);
-
 		gpio_reset_pin((gpio_num_t)enc_a);
 		gpio_reset_pin((gpio_num_t)enc_b);
 		if (waiter)
@@ -104,22 +104,21 @@ public:
 	 *
 	 * @param pin_a		GPIO number of encoder A pin.
 	 * @param pin_b		GPIO number of encoder B pin.
+	 * @param pull_up	Enable or disable the pull up or pull down load.
 	 */
 	void init(int pin_a, int pin_b, enum PullUp pull_up = NONE) {
-		if (init_done)
-			return;
-
 		enc_a = (gpio_num_t)pin_a;
 		enc_b = (gpio_num_t)pin_b;
 
 		gpio_install_isr_service(0);
 		gpio_config(enc_a, pull_up);
 		gpio_config(enc_b, pull_up);
+		ESP_ERROR_CHECK(gpio_set_intr_type(enc_a,
+			pull_up == PULL_DOWN ? \
+				GPIO_INTR_POSEDGE : GPIO_INTR_NEGEDGE));
 		ESP_ERROR_CHECK(gpio_isr_handler_add(enc_a, isr_a, this));
-		ESP_ERROR_CHECK(gpio_isr_handler_add(enc_b, isr_b, this));
 		waiter = xSemaphoreCreateBinary();
 		ESP_ERROR_CHECK(waiter == nullptr);
-		init_done = true;
 	}
 
 	/**
@@ -185,81 +184,50 @@ public:
 	}
 
 private:
-	static void gpio_config(int g, enum PullUp pull_up)
-	{
+	static void gpio_config(int g, enum PullUp pull_up) {
 		ESP_ERROR_CHECK(gpio_reset_pin((gpio_num_t)g));
-		ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)g, GPIO_MODE_INPUT));
+		ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)g,
+			GPIO_MODE_INPUT));
 		switch (pull_up) {
 		case NONE:
 			break;
 		case PULL_UP:
-			ESP_ERROR_CHECK(gpio_set_pull_mode((gpio_num_t)g, GPIO_PULLUP_ONLY));
+			ESP_ERROR_CHECK(gpio_set_pull_mode((gpio_num_t)g,
+				GPIO_PULLUP_ONLY));
 			ESP_ERROR_CHECK(gpio_pullup_en((gpio_num_t)g));
 			break;
 		case PULL_DOWN:
-			ESP_ERROR_CHECK(gpio_set_pull_mode((gpio_num_t)g, GPIO_PULLDOWN_ONLY));
+			ESP_ERROR_CHECK(gpio_set_pull_mode((gpio_num_t)g,
+				GPIO_PULLDOWN_ONLY));
 			ESP_ERROR_CHECK(gpio_pullup_en((gpio_num_t)g));
 			break;
 		}
-		ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)g, GPIO_INTR_POSEDGE));
 	}
 
-	static void wakeup(Encoder *e)
-	{
+	static inline void wakeup(Encoder *e) {
 		xSemaphoreGiveFromISR(e->waiter, NULL);
 	}
 
-	static void check_limit(Encoder *e)
-	{
+	static inline void check_limit(Encoder *e) {
 		if (e->value > e->max)
 			e->value = e->max;
 		if (e->value < e->min)
 			e->value = e->min;
 	}
 
-	static void isr_a(void *params)
-	{
+	static void isr_a(void *params) {
 		Encoder *e = static_cast<Encoder *>(params);
-		
-		if (e->prev == ENCODER_A)
-			return;
-		e->prev = ENCODER_A;
-
-		e->seq <<= 2;
-		e->seq |= gpio_get_level(e->enc_b) << 1;
-		e->seq &= 0xF;
-
-		if (e->seq == 4)
-			e->value += e->step;
+		if (ENC_GPIO_READ(e->enc_b))
+			e->value++;
+		else
+			e->value--;
 
 		check_limit(e);
 		wakeup(e);
 	}
 
-	static void isr_b(void *params)
-	{
-		Encoder *e = static_cast<Encoder *>(params);
-
-		if (e->prev == ENCODER_B)
-			return;
-		e->prev = ENCODER_B;
-
-		e->seq <<= 2;
-		e->seq |= gpio_get_level(e->enc_a) << 0;
-		e->seq &= 0xF;
-
-		if (e->seq == 8)
-			e->value -= e->step;
-
-		check_limit(e);
-		wakeup(e);
-	}
-
-	enum { ENCODER_A, ENCODER_B } prev = ENCODER_A;
-	bool init_done = false;
 	gpio_num_t enc_a;
 	gpio_num_t enc_b;
-	uint8_t seq = 0;
 	T value = 0;
 	T step = 1;
 	T min = std::numeric_limits<T>::min();
