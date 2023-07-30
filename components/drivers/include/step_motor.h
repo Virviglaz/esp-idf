@@ -34,13 +34,17 @@ public:
 		   int dir_pin,
 		   float acc,
 		   uint32_t pos_clk_us = 50,
-		   bool (*check_stop)(bool CW) = nullptr) :
+		   bool (*check_stop)(bool CW) = nullptr,
+		   bool invert_clk_polarity = false,
+		   bool invert_ena_polarity = false) :
 			_ena_pin(ena_pin),
 			_clk_pin(clk_pin),
 			_dir_pin(dir_pin),
 			_acc(acc),
 			_pos_clk_us(pos_clk_us),
-			_check_stop(check_stop) {}
+			_check_stop(check_stop),
+			clk_pol(!invert_clk_polarity),
+			ena_pol(!invert_ena_polarity) {}
 	~Step_motor() {
 		clear();
 		esp_timer_stop(handle);
@@ -49,7 +53,7 @@ public:
 			vSemaphoreDelete(waiter);
 	}
 
-	int init() {
+	void init(const bool skip_gpio_init = false) {
 		const esp_timer_create_args_t config = {
 			.callback = callback,
 			.arg = this,
@@ -58,13 +62,15 @@ public:
 			.skip_unhandled_events = true,
 		};
 		
-		ESP_ERROR_CHECK(STP_GPIO_RESET(_ena_pin));
-		ESP_ERROR_CHECK(STP_GPIO_RESET(_clk_pin));
-		ESP_ERROR_CHECK(STP_GPIO_RESET(_dir_pin));
+		if (!skip_gpio_init) {
+			ESP_ERROR_CHECK(STP_GPIO_RESET(_ena_pin));
+			ESP_ERROR_CHECK(STP_GPIO_RESET(_clk_pin));
+			ESP_ERROR_CHECK(STP_GPIO_RESET(_dir_pin));
 
-		ESP_ERROR_CHECK(STP_GPIO_INIT(_ena_pin));
-		ESP_ERROR_CHECK(STP_GPIO_INIT(_clk_pin));
-		ESP_ERROR_CHECK(STP_GPIO_INIT(_dir_pin));
+			ESP_ERROR_CHECK(STP_GPIO_INIT(_ena_pin));
+			ESP_ERROR_CHECK(STP_GPIO_INIT(_clk_pin));
+			ESP_ERROR_CHECK(STP_GPIO_INIT(_dir_pin));
+		}
 		
 		ESP_ERROR_CHECK(esp_timer_create(&config, &handle));
 
@@ -75,8 +81,6 @@ public:
 		acc_step_per_us = _acc / 1E12;
 
 		per_slowest_step = 1000000.0 / sqrt(2.0 * _acc);
-
-		return 0;
 	}
 
 	void add_segment(int steps, float speed) {
@@ -124,11 +128,11 @@ public:
 	}
 
 	void enable() {
-		STP_GPIO_SET(_ena_pin, 1);
+		STP_GPIO_SET(_ena_pin, ena_pol);
 	}
 
 	void disable() {
-		STP_GPIO_SET(_ena_pin, 0);
+		STP_GPIO_SET(_ena_pin, !ena_pol);
 	}
 
 	void run() {
@@ -231,12 +235,12 @@ private:
 				return 0;
 
 			if (m->clk_edge == NEG) {
-				STP_GPIO_SET(m->_clk_pin, 0);
+				STP_GPIO_SET(m->_clk_pin, m->clk_pol);
 				m->clk_edge = POS;
 				return m->_pos_clk_us;
 			}
 
-			STP_GPIO_SET(m->_clk_pin, 1);
+			STP_GPIO_SET(m->_clk_pin, !m->clk_pol);
 			STP_GPIO_SET(m->_dir_pin, dir == CCW);
 			m->clk_edge = NEG;
 			switch (state) {
@@ -291,6 +295,9 @@ private:
 	int _dir_pin;
 	float _acc;
 	uint32_t _pos_clk_us;
+	bool (*_check_stop)(bool CW);
+	bool clk_pol;
+	bool ena_pol;
 
 	float per_slowest_step = 0;
 	float acc_step_per_us = 0;
@@ -301,7 +308,6 @@ private:
 	std::vector<Segment *> job;
 	SemaphoreHandle_t waiter = nullptr;
 	bool force_stop = false;
-	bool (*_check_stop)(bool CW);
 };
 
 #endif /* __STEP_MOTOR_H__ */
