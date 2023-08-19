@@ -125,6 +125,7 @@ static void start_update_process(int sockfd)
 	uint32_t bytes_written = 0;
 	uint64_t timestamp = esp_timer_get_time();
 	uint64_t prev_timestamp_s = timestamp / 1000000u;
+	uint32_t download_spd = 0;
 	(void)ret;
 
 	ESP_GOTO_ON_ERROR(get_latest_version(sockfd, server_version,
@@ -199,8 +200,11 @@ static void start_update_process(int sockfd)
 
 		uint64_t new_timestamp_s = esp_timer_get_time() / 1000000u;
 		if (new_timestamp_s != prev_timestamp_s) {
-			ESP_LOGI(tag, "Updating SW %lu bytes -> %lu/%lu",
-				msg->page_size, bytes_written, fw_size);
+			float speed = bytes_written - download_spd;
+			speed /= 1024;
+			download_spd = bytes_written;
+			ESP_LOGI(tag, "Updating SW %lu bytes -> %lu/%lu (%.2f kB/s)",
+				msg->page_size, bytes_written, fw_size, speed);
 			prev_timestamp_s = new_timestamp_s;
 		}
 	};
