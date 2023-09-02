@@ -40,6 +40,7 @@ static bool is_confirmed = false;
 static bool is_running = false;
 static bool busy = false;
 static SemaphoreHandle_t wait;
+static int64_t start_time = 0;
 
 static int get_latest_version(int sockfd, char *server_version,
 	uint32_t *fw_size, uint32_t *page_size)
@@ -127,6 +128,8 @@ static void start_update_process(int sockfd)
 	uint64_t prev_timestamp_s = timestamp / 1000000u;
 	uint32_t download_spd = 0;
 	(void)ret;
+
+	start_time = esp_timer_get_time();
 
 	ESP_GOTO_ON_ERROR(get_latest_version(sockfd, server_version,
 		&fw_size, &page_size), fail, tag, "get latest version failed");
@@ -299,6 +302,7 @@ int ota_start(ota_t *settings)
 		const esp_app_desc_t *app_desc = esp_app_get_description();
 		strcpy(vers, app_desc->version);
 		s->version = vers;
+		ESP_LOGI(tag, "Running aplication version: %s", vers);
 	}
 
 	if (xTaskCreate(handler, tag,
@@ -336,7 +340,9 @@ int ota_stop(void)
 	return 0;
 }
 
-bool ota_check_busy(void)
+bool ota_check_busy(int64_t *timestamp)
 {
+	if (timestamp)
+		*timestamp = start_time;
 	return busy;
 }
