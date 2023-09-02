@@ -68,7 +68,7 @@ int ota_stop(void);
  * @return true if update is in progress.
  * @return false if not.
  */
-bool ota_check_busy(void);
+bool ota_check_busy(int64_t *timestamp);
 
 #ifdef __cplusplus
 }
