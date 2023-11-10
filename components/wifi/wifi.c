@@ -121,7 +121,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 		ip_event_got_ip_t *event = (ip_event_got_ip_t*)event_data;
 		snprintf(ip_address, sizeof(ip_address), IPSTR,
 			IP2STR(&event->ip_info.ip));
-		ESP_LOGI(tag, "Got ip: %s", ip_address);
+		ESP_LOGI(tag, "Wifi got ip: %s", ip_address);
 		is_connected = true;
 	}
 }
