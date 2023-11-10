@@ -34,13 +34,14 @@ static void event_start_scan(void)
 		.scan_time.active.min = 0,
 		.scan_time.active.max = 0,
 	};
-	ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, false));
+	esp_wifi_scan_start(&scan_config, false);
 }
 
 static void event_find_ap_from_list(void)
 {
 	uint16_t ap_found;
 	wifi_ap_record_t *ap_list;
+	wifi_ap_record_t *ap_alloc;
 	bool is_found = false;
 
 	ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_found));
@@ -51,12 +52,14 @@ static void event_find_ap_from_list(void)
 		return;
 	}
 
-	ap_list = malloc(ap_found * sizeof(*ap_list));
-	if (!ap_list) {
+	ap_alloc = malloc(ap_found * sizeof(*ap_list));
+	if (!ap_alloc) {
 		ESP_LOGE(tag, "Memory low, retry later...");
 		event_start_scan();
 		return;
 	}
+
+	ap_list = ap_alloc;
 
 	ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_found, ap_list));
 
@@ -82,7 +85,7 @@ static void event_find_ap_from_list(void)
 	ESP_LOGI(tag, "No known APs found, retry...");
 done:
 	ESP_ERROR_CHECK(esp_wifi_clear_ap_list());
-	free(ap_list);
+	free(ap_alloc);
 
 	if (is_found) {
 		ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg));
