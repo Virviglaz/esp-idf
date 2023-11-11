@@ -34,7 +34,10 @@ static void event_start_scan(void)
 		.scan_time.active.min = 0,
 		.scan_time.active.max = 0,
 	};
-	esp_wifi_scan_start(&scan_config, false);
+	if (esp_wifi_scan_start(&scan_config, false) ==
+		ESP_ERR_WIFI_NOT_STARTED)
+		esp_wifi_start();
+
 }
 
 static void event_find_ap_from_list(void)
