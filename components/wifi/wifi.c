@@ -50,7 +50,7 @@ static void event_find_ap_from_list(void)
 	ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_found));
 
 	if (ap_found <= 0) {
-		ESP_LOGI(tag, "No APs found, retry...");
+		ESP_LOGD(tag, "No APs found, retry...");
 		event_start_scan();
 		return;
 	}
@@ -68,11 +68,11 @@ static void event_find_ap_from_list(void)
 
 	for (uint16_t j = 0; j != ap_found; j++) {
 		wifi_credentials_t *ap = credentials_list.ap_list;
+		ESP_LOGD(tag, "UUID: %s, RSSI=%d", (char *)ap_list->ssid,
+			ap_list->rssi);
 		for (uint16_t i = 0; i != credentials_list.list_size; i++) {
-			ESP_LOGI(tag, "UUID: %s, RSSI=%d",
-				(char *)ap_list->ssid, ap_list->rssi);
 			if (!strcmp(ap->uuid, (char *)ap_list->ssid)) {
-				ESP_LOGI(tag, "Connecting to %s...", ap->uuid);
+				ESP_LOGD(tag, "Connecting to %s...", ap->uuid);
 				strcpy((char *)sta_cfg.sta.ssid, ap->uuid);
 				strcpy((char *)sta_cfg.sta.password, ap->pass);
 				sta_cfg.sta.threshold.authmode =
@@ -85,7 +85,7 @@ static void event_find_ap_from_list(void)
 		}
 		ap_list++;
 	}
-	ESP_LOGI(tag, "No known APs found, retry...");
+	ESP_LOGD(tag, "No known APs found, retry...");
 done:
 	ESP_ERROR_CHECK(esp_wifi_clear_ap_list());
 	free(ap_alloc);
@@ -93,6 +93,9 @@ done:
 	if (is_found) {
 		ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg));
 		ESP_ERROR_CHECK(esp_wifi_connect());
+	} else {
+		vTaskDelay(pdMS_TO_TICKS(10000));
+		event_start_scan();
 	}
 }
 
@@ -103,19 +106,27 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 		switch (event_id) {
 		case WIFI_EVENT_STA_START:
 		case WIFI_EVENT_STA_DISCONNECTED:	/* Step 1 */
-			ESP_LOGI(tag, "Disconnected, scanning APs...");
+			ESP_LOGD(tag, "Disconnected, scanning APs...");
 			is_connected = false;
 			event_start_scan();
-			break;
+			return;
 		case WIFI_EVENT_SCAN_DONE:		/* Step 2 */
-			ESP_LOGI(tag, "Scanning is done, looking for the AP");
+			ESP_LOGD(tag, "Scanning is done, looking for the AP");
 			event_find_ap_from_list();
-			break;
+			return;
 		case WIFI_EVENT_STA_CONNECTED:		/* Step 3 */
-			ESP_LOGI(tag, "Connection established.");
-			break;
+			ESP_LOGD(tag, "Connection established.");
+			return;
+		case WIFI_EVENT_STA_STOP:
+			ESP_LOGD(tag, "Wifi stopped.");
+			return;
+		default: /* TODO: remove this */
+			ESP_LOGE(tag, "Undefined event %d, reconnecting...",
+				(int)event_id);
+			if (esp_wifi_connect() == ESP_ERR_WIFI_NOT_STARTED)
+				esp_wifi_start();
+			return;
 		}
-		return;
 	}
 
 	/* Step 4 */
