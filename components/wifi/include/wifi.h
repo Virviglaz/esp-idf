@@ -67,6 +67,13 @@ void wifi_stop(void);
  */
 const char *wifi_get_current_uuid(void);
 
+/**
+ * @brief Get IPv4 address.
+ *
+ * @return Pointer to IP address string.
+ */
+const char *wifi_get_ip(void);
+
 #ifdef __cplusplus
 }
 #endif

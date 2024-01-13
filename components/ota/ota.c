@@ -218,9 +218,10 @@ static void start_update_process(int sockfd)
 
 	close(sockfd);
 
-	ESP_LOGI(tag, "Firmware update is done in %llu seconds, rebooting...",
+	ESP_LOGI(tag, "Firmware update is done in %llu seconds, reboot in 5s...",
 		(esp_timer_get_time() - timestamp) / 1000000u);
 
+	vTaskDelay(pdMS_TO_TICKS(5000));
 	esp_restart();
 
 abort:
