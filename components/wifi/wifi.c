@@ -5,12 +5,14 @@
 #include "lwip/sockets.h"
 #include <stdint.h>
 #include <string.h>
-#include "wifi.h"
+#include <wifi.h>
 
 static const char *tag = "wifi";
 static bool init_done = false;
 static bool is_connected = false;
 static const char *current_uuid;
+static bool scan_failed = false;
+static char ip_address[16];
 
 static struct {
 	wifi_credentials_t *ap_list;
@@ -94,8 +96,7 @@ done:
 		ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg));
 		ESP_ERROR_CHECK(esp_wifi_connect());
 	} else {
-		vTaskDelay(pdMS_TO_TICKS(10000));
-		event_start_scan();
+		scan_failed = true;
 	}
 }
 
@@ -106,6 +107,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 		switch (event_id) {
 		case WIFI_EVENT_STA_START:
 		case WIFI_EVENT_STA_DISCONNECTED:	/* Step 1 */
+		case WIFI_EVENT_STA_BEACON_TIMEOUT:
 			ESP_LOGD(tag, "Disconnected, scanning APs...");
 			is_connected = false;
 			event_start_scan();
@@ -131,7 +133,6 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
 	/* Step 4 */
 	if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-		char ip_address[16];
 		ip_event_got_ip_t *event = (ip_event_got_ip_t*)event_data;
 		snprintf(ip_address, sizeof(ip_address), IPSTR,
 			IP2STR(&event->ip_info.ip));
@@ -163,6 +164,17 @@ int connect_to_server(int *socketfd, const char *server, uint32_t port)
 	return 0;
 }
 
+static void monitor(void *arg)
+{
+	while (1) {
+		vTaskDelay(pdMS_TO_TICKS(10000));
+		if (scan_failed) {
+			event_start_scan();
+			scan_failed = false;
+		}
+	}
+}
+
 void wifi_start(wifi_credentials_t *ap_list, int size)
 {
 	const wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
@@ -185,6 +197,8 @@ void wifi_start(wifi_credentials_t *ap_list, int size)
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 	ESP_ERROR_CHECK(esp_wifi_start());
 	init_done = true;
+
+	xTaskCreate(monitor, __FILE__, 2048, NULL, tskIDLE_PRIORITY + 1, 0);
 }
 
 bool wifi_is_connected(void)
@@ -205,4 +219,9 @@ void wifi_stop(void)
 const char *wifi_get_current_uuid(void)
 {
 	return current_uuid;
+}
+
+const char *wifi_get_ip(void)
+{
+	return ip_address;
 }
