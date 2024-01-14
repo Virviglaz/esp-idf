@@ -2,7 +2,8 @@
 #define __LOG_H__
 
 /* Logs */
-#include "esp_log.h"
+#include <logger.h>
+#include <esp_log.h>
 
 #ifdef UNIQ_LOGGING
 extern char *log_tag;
