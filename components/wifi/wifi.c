@@ -12,6 +12,7 @@ static bool init_done = false;
 static bool is_connected = false;
 static const char *current_uuid;
 static bool scan_failed = false;
+static uint8_t mac[6];
 static char ip_address[16];
 
 static struct {
@@ -190,6 +191,7 @@ void wifi_start(wifi_credentials_t *ap_list, int size)
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 	esp_netif_create_default_wifi_sta();
 	ESP_ERROR_CHECK(esp_wifi_init(&config));
+	ESP_ERROR_CHECK(esp_wifi_get_mac(ESP_IF_WIFI_STA, mac));
 	ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
 		ESP_EVENT_ANY_ID, &event_handler, NULL, &instance_any_id));
 	ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
@@ -219,6 +221,11 @@ void wifi_stop(void)
 const char *wifi_get_current_uuid(void)
 {
 	return current_uuid;
+}
+
+const uint8_t *wifi_get_mac(void)
+{
+	return mac;
 }
 
 const char *wifi_get_ip(void)
