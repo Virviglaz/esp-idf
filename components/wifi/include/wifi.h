@@ -68,6 +68,13 @@ void wifi_stop(void);
 const char *wifi_get_current_uuid(void);
 
 /**
+ * @brief Get wifi adapter mac address.
+ *
+ * @return Pointer to mac address string.
+ */
+const uint8_t *wifi_get_mac(void);
+
+/**
  * @brief Get IPv4 address.
  *
  * @return Pointer to IP address string.
