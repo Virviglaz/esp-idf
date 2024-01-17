@@ -142,7 +142,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 	}
 }
 
-int connect_to_server(int *socketfd, const char *server, uint32_t port)
+int connect_to_server(int *socketfd, const char *server_ip, uint32_t port)
 {
 	struct sockaddr_in dest = {
 		.sin_family = AF_INET,
@@ -150,7 +150,7 @@ int connect_to_server(int *socketfd, const char *server, uint32_t port)
 	};
 	int tmp;
 
-	dest.sin_addr.s_addr = inet_addr(server);
+	dest.sin_addr.s_addr = inet_addr(server_ip);
 
 	tmp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (tmp < 0)
@@ -163,6 +163,19 @@ int connect_to_server(int *socketfd, const char *server, uint32_t port)
 
 	*socketfd = tmp;
 	return 0;
+}
+
+int connect_to_server_from_list(int *socketfd,
+				const char *server_ip_list[],
+				int list_size,
+				uint32_t port) {
+	int n = 0;
+	int res;
+
+	do {
+		res = connect_to_server(socketfd, server_ip_list[n++], port);
+	} while (res && n < list_size);
+	return res;
 }
 
 static void monitor(void *arg)
