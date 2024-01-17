@@ -40,12 +40,27 @@ void wifi_start(wifi_credentials_t *ap_list, int size);
  * @brief Connect to server.
  *
  * @param[out] socketfd	Pointer to socket file descriptor.
- * @param[in] server	Pointer to server IP address string.
+ * @param[in] server_ip	Pointer to server IP address string.
  * @param[in] port	Server port number.
  *
  * @return int		0 on success, error code on error.
  */
-int connect_to_server(int *socketfd, const char *server, uint32_t port);
+int connect_to_server(int *socketfd, const char *server_ip, uint32_t port);
+
+/**
+ * @brief Connect to server from list.
+ *
+ * @param[out] socketfd		Pointer to socket file descriptor.
+ * @param[in] server_ip_list	Pointer to server IP address strings list.
+ * @param[in] list_size		List size.
+ * @param[in] port	Server port number.
+ *
+ * @return int		0 on success, error code on error.
+ */
+int connect_to_server_from_list(int *socketfd,
+				const char *server_ip_list[],
+				int list_size,
+				uint32_t port);
 
 /**
  * @brief Check wifi is connected.
