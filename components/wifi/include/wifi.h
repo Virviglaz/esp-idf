@@ -96,6 +96,13 @@ const uint8_t *wifi_get_mac(void);
  */
 const char *wifi_get_ip(void);
 
+/**
+ * @brief Set hostname.
+ *
+ * @param new_name Pointer to string name.
+ */
+void wifi_set_hostname(const char *new_name);
+
 #ifdef __cplusplus
 }
 #endif
