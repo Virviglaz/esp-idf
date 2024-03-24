@@ -53,13 +53,13 @@ extern "C" {
 #endif
 
 /**
- * @brief Interface function. Enables the communitaction with the IC.
+ * @brief Interface function. Enables the communication with the IC.
  *
  * @param tx	Pointer to transfer data.
  * @param rx	Pointer to received data.
  * @param size	Size of data in bytes.
  *
- * @note This function should extablish the communitation. Normally SPI used.
+ * @note This function should establish the communication. Normally SPI used.
  */
 typedef void (*io_func_t)(uint8_t *tx, uint8_t *rx, uint32_t size);
 
@@ -94,10 +94,10 @@ typedef enum {
  * @brief LTC6804-2 configuration settings.
  */
 typedef struct {
-	/* Each cell undervoltage threshold value in volts */
+	/* Each cell under-voltage threshold value in volts */
 	double under_voltage;
 
-	/* Each cell overvoltage threshold value in volts */
+	/* Each cell over-voltage threshold value in volts */
 	double over_voltage;
 
 	/* Discharge timeout */
@@ -130,8 +130,8 @@ typedef struct {
 	double die_temp;		/* ITMP: Internal Die Temperature */
 	double analog_supp_v;		/* Analog Power Supply Voltage */
 	double digital_supp_v;		/* Digital Power Supply Voltage */
-	bool cell_overvoltage[12];	/* overvoltage flag */
-	bool cell_undervoltage[12];	/* undervoltage flag */
+	bool cell_overvoltage[12];	/* ove-rvoltage flag */
+	bool cell_undervoltage[12];	/* under-voltage flag */
 	uint8_t chip_revision;		/* 4-bits chip revision */
 } misc_meas;
 
@@ -232,7 +232,7 @@ void ltc6804_clear_all(void);
 
 /**
  * @brief Read CELLs voltages.
- * @note Non-wating call.
+ * @note Non-waiting call.
  *
  * @param c			Pointer to cell_meas data struct.
  * @return int			0 if success, error code if error.
@@ -241,7 +241,7 @@ int ltc6804_read_cells(cell_meas *c);
 
 /**
  * @brief Read CELLs voltages and 2 GPIOs.
- * @note Non-wating call.
+ * @note Non-waiting call.
  *
  * @param c			Pointer to comb_meas data struct.
  * @return int			0 if success, error code if error.
@@ -250,7 +250,7 @@ int ltc6804_read_comb(comb_meas *c);
 
 /**
  * @brief Read GPIO voltages and second reference voltage.
- * @note Non-wating call.
+ * @note Non-waiting call.
  *
  * @param c			Pointer to aux_meas data struct.
  * @return int			0 if success, error code if error.
@@ -259,7 +259,7 @@ int ltc6804_read_aux(aux_meas *c);
 
 /**
  * @brief Read miscellaneous ADC settings.
- * @note Non-wating call.
+ * @note Non-waiting call.
  *
  * @param c			Pointer to misc_meas struct.
  * @return int			0 if success, error code if error.
@@ -272,7 +272,7 @@ int ltc6804_read_int_params(misc_meas *c);
  *
  * @param c			Pointer to cell_meas struct to store the data.
  * @param mode			ADC mode
- * @param discharge_en		Enable the ballancing discharge during measure.
+ * @param discharge_en		Enable the balancing discharge during measure.
  * @param poll_interval_ms	Polling interval in ms.
  * @return int			0 if success, error code if error.
  */
@@ -285,7 +285,7 @@ int ltc6804_convert_cell(cell_meas *c, enum adc_mode mode, bool discharge_en,
  *
  * @param c			Pointer to comb_meas struct to store the data.
  * @param mode			ADC mode
- * @param discharge_en		Enable the ballancing discharge during measure.
+ * @param discharge_en		Enable the balancing discharge during measure.
  * @param poll_interval_ms	Polling interval in ms.
  * @return int			0 if success, error code if error.
  */
