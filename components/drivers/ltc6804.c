@@ -274,11 +274,11 @@ bool ltc6804_check_conversion_done(void)
 
 bool ltc6804_wait_conversion_done(uint32_t poll_interval_ms)
 {
-	uint8_t atmp = 10;
+	uint8_t atmp = 100;
 	do {
+		delay(poll_interval_ms);
 		if (ltc6804_check_conversion_done())
 			return true;
-		delay(poll_interval_ms);
 	} while (atmp--);
 	return false;
 }
