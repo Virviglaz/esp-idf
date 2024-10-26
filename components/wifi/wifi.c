@@ -89,8 +89,12 @@ static int event_find_ap_from_list(void)
 	}
 	ESP_LOGD(tag, "No known APs found, retry...");
 done:
-	ESP_ERROR_CHECK(esp_wifi_clear_ap_list());
 	free(ap_alloc);
+
+	if (init_done)
+		ESP_ERROR_CHECK(esp_wifi_clear_ap_list());
+	else
+		return ECANCELED;
 
 	if (is_found) {
 		ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg));
@@ -217,6 +221,7 @@ void wifi_stop(void)
 
 	is_connected = false;
 	init_done = false;
+	esp_wifi_disconnect();
 	esp_wifi_stop();
 }
 
