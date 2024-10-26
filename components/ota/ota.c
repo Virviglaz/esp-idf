@@ -40,6 +40,7 @@ static bool is_confirmed = false;
 static bool is_running = false;
 static bool busy = false;
 static SemaphoreHandle_t wait;
+static SemaphoreHandle_t done;
 static int64_t start_time = 0;
 
 static int get_latest_version(int sockfd, char *server_version,
@@ -171,10 +172,6 @@ static void start_update_process(int sockfd)
 		return;
 	}
 
-	/*ESP_GOTO_ON_ERROR(esp_partition_erase_range(partition, 0,
-				partition->size), fail, tag,
-				"fail to erase partition");*/
-
 	ESP_GOTO_ON_ERROR(esp_ota_begin(partition, OTA_SIZE_UNKNOWN, &handle),
 		fail, tag, "ota begin failed");
 
@@ -220,6 +217,12 @@ static void start_update_process(int sockfd)
 
 	ESP_LOGI(tag, "Firmware update is done in %llu seconds, reboot in 5s...",
 		(esp_timer_get_time() - timestamp) / 1000000u);
+
+	/* Clear semaphore if set */
+	ota_wait_for_finish(0);
+
+	/* Update is done */
+	xSemaphoreGive(done);
 
 	vTaskDelay(pdMS_TO_TICKS(5000));
 	esp_restart();
@@ -277,6 +280,7 @@ static void handler(void *args)
 	}
 
 	vSemaphoreDelete(wait);
+	vSemaphoreDelete(done);
 	is_running = false;
 	vTaskDelete(NULL);
 }
@@ -290,6 +294,7 @@ int ota_start(ota_t *settings)
 
 	s = settings;
 	wait = xSemaphoreCreateBinary();
+	done = xSemaphoreCreateBinary();
 
 	if (!s->check_interval_ms)
 		s->check_interval_ms = DEFAULT_CHECK_INTERVAL_MS;
@@ -346,4 +351,12 @@ bool ota_check_busy(int64_t *timestamp)
 	if (timestamp)
 		*timestamp = start_time;
 	return busy;
+}
+
+bool ota_wait_for_finish(uint32_t timeout)
+{
+	if ((!is_running) || (!busy))
+		return false;
+
+	return xSemaphoreTake(done, pdMS_TO_TICKS(timeout)) == pdTRUE;
 }

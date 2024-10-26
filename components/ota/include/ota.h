@@ -70,6 +70,15 @@ int ota_stop(void);
  */
 bool ota_check_busy(int64_t *timestamp);
 
+/**
+ * @brief Wait for update to finish.
+ *
+ * @param timeout	Timeout in [ms].
+ *
+ * @return true if done, false on error.
+*/
+bool ota_wait_for_finish(uint32_t timeout);
+
 #ifdef __cplusplus
 }
 #endif
