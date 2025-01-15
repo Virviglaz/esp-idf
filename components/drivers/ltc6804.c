@@ -572,3 +572,18 @@ int ltc6804_discharge(uint8_t cell, bool state)
 	write_data(WRCFG, cfgr, sizeof(cfgr));
 	return 0;
 }
+
+int ltc6804_discharge_stop(void)
+{
+	uint8_t cfgr[6];
+
+	int res = read_data(RDCFG, cfgr, sizeof(cfgr), false);
+	if (res)
+		return res;
+
+	cfgr[4] = 0;
+	cfgr[5] &= 0x0F;
+
+	write_data(WRCFG, cfgr, sizeof(cfgr));
+	return 0;
+}

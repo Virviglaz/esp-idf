@@ -326,6 +326,13 @@ int ltc6804_convert_misc(misc_meas *c, enum adc_mode mode,
  */
 int ltc6804_discharge(uint8_t cell, bool state);
 
+/**
+ * @brief Stop discharging and disable all loads.
+ *
+ * @return int			0 if success, error code if error.
+ */
+int ltc6804_discharge_stop(void);
+
 #ifdef __cplusplus
 }
 #endif
