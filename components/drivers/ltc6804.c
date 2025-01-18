@@ -581,6 +581,8 @@ int ltc6804_discharge_stop(void)
 	if (res)
 		return res;
 
+	/* This bits enabled the analog functions of GPIO */
+	cfgr[0] |=  0xF8;
 	cfgr[4] = 0;
 	cfgr[5] &= 0x0F;
 
