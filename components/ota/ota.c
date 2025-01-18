@@ -138,8 +138,11 @@ static void start_update_process(int sockfd)
 	if (!strcmp(server_version, s->version))
 		return; /* sw is actual */
 
-	ESP_LOGI(tag, "Starting SW update from %s to %s",
+	ESP_LOGI(s->tag, "Starting SW update from %s to %s",
 		s->version, server_version);
+
+	/* Clear semaphore if set */
+	ota_wait_for_finish(0);
 
 	busy = true;
 
@@ -147,19 +150,19 @@ static void start_update_process(int sockfd)
 
 	partition = esp_ota_get_next_update_partition(0);
 	if (!partition) {
-		ESP_LOGE(tag, "No OTA partition found. SW update aborted");
+		ESP_LOGE(s->tag, "No OTA partition found. SW update aborted");
 		busy = false;
 		return;
 	}
 	partition = esp_partition_verify(partition);
 	if (!partition) {
-		ESP_LOGE(tag, "Partition validation failed");
+		ESP_LOGE(s->tag, "Partition validation failed");
 		busy = false;
 		return;
 	}
 
 	if (!is_ota_partition(partition)) {
-		ESP_LOGE(tag, "Not an OTA partition");
+		ESP_LOGE(s->tag, "Not an OTA partition");
 		busy = false;
 		return;
 	}
@@ -167,13 +170,13 @@ static void start_update_process(int sockfd)
 	const esp_partition_t* running_partition =
 		esp_ota_get_running_partition();
 	if (partition == running_partition) {
-		ESP_LOGE(tag, "Cannot update running partition");
+		ESP_LOGE(s->tag, "Cannot update running partition");
 		busy = false;
 		return;
 	}
 
 	ESP_GOTO_ON_ERROR(esp_ota_begin(partition, OTA_SIZE_UNKNOWN, &handle),
-		fail, tag, "ota begin failed");
+		fail, s->tag, "ota begin failed");
 
 	bytes_left = fw_size;
 
@@ -191,7 +194,7 @@ static void start_update_process(int sockfd)
 			goto abort;
 
 		ESP_GOTO_ON_ERROR(esp_ota_write(handle, msg->data,
-			msg->page_size), abort, tag, "ota write error");
+			msg->page_size), abort, s->tag, "ota write error");
 
 		bytes_left -= msg->page_size;
 		bytes_written += msg->page_size;
@@ -203,14 +206,14 @@ static void start_update_process(int sockfd)
 			float speed = bytes_written - download_spd;
 			speed /= 1024;
 			download_spd = bytes_written;
-			ESP_LOGI(tag, "Updating SW %lu bytes -> %lu/%lu (%.2f kB/s)",
+			ESP_LOGI(s->tag, "Updating SW %lu bytes -> %lu/%lu (%.2f kB/s)",
 				msg->page_size, bytes_written, fw_size, speed);
 			prev_timestamp_s = new_timestamp_s;
 		}
 	};
 
-	ESP_GOTO_ON_ERROR(esp_ota_end(handle), abort, tag, "Ota end failed");
-	ESP_GOTO_ON_ERROR(esp_ota_set_boot_partition(partition), abort, tag,
+	ESP_GOTO_ON_ERROR(esp_ota_end(handle), abort, s->tag, "Ota end failed");
+	ESP_GOTO_ON_ERROR(esp_ota_set_boot_partition(partition), abort, s->tag,
 		"setting boot partition error");
 
 	close(sockfd);
@@ -218,15 +221,8 @@ static void start_update_process(int sockfd)
 	ESP_LOGI(tag, "Firmware update is done in %llu seconds, reboot in 5s...",
 		(esp_timer_get_time() - timestamp) / 1000000u);
 
-	/* Clear semaphore if set */
-	ota_wait_for_finish(0);
-
-	/* Update is done */
-	xSemaphoreGive(done);
-
 	vTaskDelay(pdMS_TO_TICKS(5000));
 	esp_restart();
-
 abort:
 	free(buffer);
 no_mem:
@@ -281,6 +277,9 @@ static void handler(void *args)
 
 	vSemaphoreDelete(wait);
 	vSemaphoreDelete(done);
+	wait = NULL;
+	done = NULL;
+
 	is_running = false;
 	vTaskDelete(NULL);
 }
@@ -310,6 +309,9 @@ int ota_start(ota_t *settings)
 		s->version = vers;
 		ESP_LOGI(tag, "Running aplication version: %s", vers);
 	}
+
+	if (!s->tag)
+		s->tag = tag;
 
 	if (xTaskCreate(handler, tag,
 		HANDLER_TASK_STACK_SIZE, 0, 1, 0) != pdTRUE)
@@ -355,7 +357,13 @@ bool ota_check_busy(int64_t *timestamp)
 
 bool ota_wait_for_finish(uint32_t timeout)
 {
-	if ((!is_running) || (!busy))
+	if (!is_running)
+		return false;
+
+	if (!busy)
+		return false;
+
+	if (!done)
 		return false;
 
 	return xSemaphoreTake(done, pdMS_TO_TICKS(timeout)) == pdTRUE;
