@@ -29,6 +29,9 @@ typedef struct {
 	/** Actual version of application, NULL to get automatically from IDF */
 	const char *version;
 
+	/** Logging tag name ptr */
+	const char *tag;
+
 	/** GPIO workaround callback if required */
 	void (*gpio_ota_workaround)(void);
 
