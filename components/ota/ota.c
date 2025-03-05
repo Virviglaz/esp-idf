@@ -117,6 +117,7 @@ static bool is_ota_partition(const esp_partition_t *p)
 static void start_update_process(int sockfd)
 {
 	char server_version[VERSION_STRING_LEN];
+	static char installed_version[VERSION_STRING_LEN];
 	esp_err_t ret = ESP_OK;
 	esp_ota_handle_t handle;
 	const esp_partition_t *partition;
@@ -137,6 +138,9 @@ static void start_update_process(int sockfd)
 
 	if (!strcmp(server_version, s->version))
 		return; /* sw is actual */
+
+	if (!strcmp(server_version, installed_version))
+		return; /* sw is already updated */
 
 	ESP_LOGI(s->tag, "Starting SW update from %s to %s",
 		s->version, server_version);
@@ -181,8 +185,11 @@ static void start_update_process(int sockfd)
 	bytes_left = fw_size;
 
 	uint32_t *buffer = malloc(OTA_HEADER_SIZE);
-	if (!buffer)
-		goto no_mem;
+	if (!buffer) {
+		ESP_LOGE(s->tag, "No memory!");
+		busy = false;
+		return;
+	}
 
 	if (s->gpio_ota_workaround)
 		s->gpio_ota_workaround();
@@ -190,8 +197,10 @@ static void start_update_process(int sockfd)
 	while (bytes_left) {
 		struct ota_header *msg = get_next_page(sockfd,
 			page_num, page_size, buffer);
-		if (!msg)
+		if (!msg) {
+			esp_ota_abort(handle);
 			goto abort;
+		}
 
 		ESP_GOTO_ON_ERROR(esp_ota_write(handle, msg->data,
 			msg->page_size), abort, s->tag, "ota write error");
@@ -218,20 +227,17 @@ static void start_update_process(int sockfd)
 
 	close(sockfd);
 
-	ESP_LOGI(tag, "Firmware update is done in %llu seconds, reboot in 5s...",
+	ESP_LOGI(tag, "Firmware update is done in %llu seconds",
 		(esp_timer_get_time() - timestamp) / 1000000u);
 
-	vTaskDelay(pdMS_TO_TICKS(5000));
-	esp_restart();
+	strncpy(installed_version, server_version, sizeof(installed_version));
+
 abort:
 	free(buffer);
-no_mem:
-	esp_ota_abort(handle);
 fail:
 	if (s->gpio_ota_cancel_workaround)
 		s->gpio_ota_cancel_workaround();
 	busy = false;
-	return;
 }
 
 static int connect_to_ota_server(void)
