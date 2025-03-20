@@ -238,6 +238,9 @@ fail:
 	if (s->gpio_ota_cancel_workaround)
 		s->gpio_ota_cancel_workaround();
 	busy = false;
+
+	if (done)
+		xSemaphoreGive(done);
 }
 
 static int connect_to_ota_server(void)
