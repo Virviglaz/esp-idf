@@ -235,7 +235,7 @@ void ltc6804_clear_all(void);
  * @note Non-waiting call.
  *
  * @param c			Pointer to cell_meas data struct.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_read_cells(cell_meas *c);
 
@@ -244,7 +244,7 @@ int ltc6804_read_cells(cell_meas *c);
  * @note Non-waiting call.
  *
  * @param c			Pointer to comb_meas data struct.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_read_comb(comb_meas *c);
 
@@ -253,7 +253,7 @@ int ltc6804_read_comb(comb_meas *c);
  * @note Non-waiting call.
  *
  * @param c			Pointer to aux_meas data struct.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_read_aux(aux_meas *c);
 
@@ -262,7 +262,7 @@ int ltc6804_read_aux(aux_meas *c);
  * @note Non-waiting call.
  *
  * @param c			Pointer to misc_meas struct.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_read_int_params(misc_meas *c);
 
@@ -274,7 +274,7 @@ int ltc6804_read_int_params(misc_meas *c);
  * @param mode			ADC mode
  * @param discharge_en		Enable the balancing discharge during measure.
  * @param poll_interval_ms	Polling interval in ms.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_convert_cell(cell_meas *c, enum adc_mode mode, bool discharge_en,
 	uint32_t poll_interval_ms);
@@ -287,7 +287,7 @@ int ltc6804_convert_cell(cell_meas *c, enum adc_mode mode, bool discharge_en,
  * @param mode			ADC mode
  * @param discharge_en		Enable the balancing discharge during measure.
  * @param poll_interval_ms	Polling interval in ms.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_convert_comb(comb_meas *c, enum adc_mode mode, bool discharge_en,
 	uint32_t poll_interval_ms);
@@ -300,7 +300,7 @@ int ltc6804_convert_comb(comb_meas *c, enum adc_mode mode, bool discharge_en,
  * @param c			Pointer to aux_meas struct to store the data.
  * @param mode			ADC mode
  * @param poll_interval_ms	Polling interval in ms.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_convert_aux(aux_meas *c, enum adc_mode mode,
 	uint32_t poll_interval_ms);
@@ -312,24 +312,32 @@ int ltc6804_convert_aux(aux_meas *c, enum adc_mode mode,
  * @param c			Pointer to misc_meas struct to store the data.
  * @param mode			ADC mode
  * @param poll_interval_ms	Polling interval in ms.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_convert_misc(misc_meas *c, enum adc_mode mode,
 	uint32_t poll_interval_ms);
 
 /**
- * @brief Enables/disables the discharging per cell.
+ * @brief Enables/disables the discharging of single cell.
  *
  * @param cell 			0..11 cell number.
  * @param state			true enables the discharge, false disables.
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_discharge(uint8_t cell, bool state);
 
 /**
+ * @brief Enable/disable multiple cells discharge.
+ *
+ * @param bitmask		12-bit mask (1-on, 0-off).
+ * @return			0 if success, error code if error.
+ */
+int ltc6804_discharge_multiple(uint16_t bitmask);
+
+/**
  * @brief Stop discharging and disable all loads.
  *
- * @return int			0 if success, error code if error.
+ * @return			0 if success, error code if error.
  */
 int ltc6804_discharge_stop(void);
 
