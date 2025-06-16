@@ -219,9 +219,12 @@ void wifi_stop(void)
 	if (!init_done)
 		return;
 
+	if (is_connected)
+		esp_wifi_disconnect();
+
 	is_connected = false;
 	init_done = false;
-	esp_wifi_disconnect();
+
 	esp_wifi_stop();
 }
 
