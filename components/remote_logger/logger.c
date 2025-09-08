@@ -168,7 +168,7 @@ void message_logger_init(logger_init_t *init)
 	conf = init;
 	init_queue();
 
-	task_create(handler, __FILE__, conf->task_heap_size, 0, 1, 0);
+	task_create(handler, "logger", conf->task_heap_size, 0, 1, 0);
 }
 
 /* switch to remote logging without initializing the handling task */

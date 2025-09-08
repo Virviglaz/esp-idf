@@ -316,13 +316,13 @@ int ota_start(ota_t *settings)
 		const esp_app_desc_t *app_desc = esp_app_get_description();
 		strcpy(vers, app_desc->version);
 		s->version = vers;
-		ESP_LOGI(tag, "Running aplication version: %s", vers);
+		ESP_LOGI(tag, "Running application version: %s", vers);
 	}
 
 	if (!s->tag)
 		s->tag = tag;
 
-	if (xTaskCreate(handler, tag,
+	if (xTaskCreate(handler, "ota",
 		HANDLER_TASK_STACK_SIZE, 0, 1, 0) != pdTRUE)
 		return EINVAL;
 
