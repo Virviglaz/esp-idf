@@ -51,7 +51,9 @@ static int event_find_ap_from_list(void)
 	wifi_ap_record_t *ap_alloc;
 	bool is_found = false;
 
-	ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_found));
+	int res = esp_wifi_scan_get_ap_num(&ap_found);
+	if (res)
+		return res;
 
 	if (ap_found <= 0) {
 		ESP_LOGD(tag, "No APs found, retry...");
@@ -119,7 +121,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 			return;
 		case WIFI_EVENT_SCAN_DONE:		/* Step 2 */
 			ESP_LOGD(tag, "Scanning is done, looking for the AP");
-			if (event_find_ap_from_list()) {
+			if (event_find_ap_from_list() != ESP_ERR_WIFI_NOT_STARTED) {
 				is_connected = false;
 				event_start_scan();
 			}
