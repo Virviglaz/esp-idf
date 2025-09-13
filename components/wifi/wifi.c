@@ -68,7 +68,9 @@ static int event_find_ap_from_list(void)
 
 	ap_list = ap_alloc;
 
-	ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_found, ap_list));
+	res = esp_wifi_scan_get_ap_records(&ap_found, ap_list);
+	if (res)
+		return res;
 
 	for (uint16_t j = 0; j != ap_found; j++) {
 		wifi_credentials_t *ap = credentials_list.ap_list;
