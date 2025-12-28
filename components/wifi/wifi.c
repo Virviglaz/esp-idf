@@ -203,7 +203,7 @@ void wifi_start(wifi_credentials_t *ap_list, int size)
 	if (!sta_netif)
 		sta_netif = esp_netif_create_default_wifi_sta();
 	ESP_ERROR_CHECK(esp_wifi_init(&config));
-	ESP_ERROR_CHECK(esp_wifi_get_mac(ESP_IF_WIFI_STA, mac));
+	ESP_ERROR_CHECK(esp_wifi_get_mac(WIFI_IF_STA, mac));
 	ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
 		ESP_EVENT_ANY_ID, &event_handler, NULL, &instance_any_id));
 	ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,

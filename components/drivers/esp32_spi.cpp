@@ -97,7 +97,7 @@ spi_bus::~spi_bus()
 {
 	vSemaphoreDelete(lock);
 	spi_bus_free(spi_num);
-	in_use[spi_num - HSPI] = false;
+	in_use[(int)spi_num - HSPI] = false;
 }
 
 /*
