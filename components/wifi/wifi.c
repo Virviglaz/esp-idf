@@ -134,6 +134,9 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 		case WIFI_EVENT_STA_STOP:
 			ESP_LOGD(tag, "Wifi stopped.");
 			return;
+		case WIFI_EVENT_HOME_CHANNEL_CHANGE:
+			ESP_LOGD(tag, "Home channel changed.");
+			return;
 		default: /* TODO: remove this */
 			ESP_LOGE(tag, "Undefined event %d, reconnecting...",
 				(int)event_id);
