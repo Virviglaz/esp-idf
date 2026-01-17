@@ -46,7 +46,7 @@ TYPES = {
     'data': DATA_TYPE,
 }
 
-NVS_RW_MIN_PARTITION_SIZE = 0x3000
+NVS_RW_MIN_PARTITION_SIZE = 0x1000
 
 
 def get_ptype_as_int(ptype):
