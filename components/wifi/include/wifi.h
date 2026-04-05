@@ -48,6 +48,17 @@ void wifi_start(wifi_credentials_t *ap_list, int size);
 int connect_to_server(int *socketfd, const char *server_ip, uint32_t port);
 
 /**
+ * @brief Connect to server using UDP protocol.
+ *
+ * @param[out] socketfd	Pointer to socket file descriptor.
+ * @param[in] server_ip	Pointer to server IP address string.
+ * @param[in] port	Server port number.
+ *
+ * @return int		0 on success, error code on error.
+ */
+int connect_to_server_udp(int *socketfd, const char *server_ip, uint32_t port);
+
+/**
  * @brief Connect to server from list.
  *
  * @param[out] socketfd		Pointer to socket file descriptor.

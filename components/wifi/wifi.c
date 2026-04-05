@@ -177,6 +177,29 @@ int connect_to_server(int *socketfd, const char *server_ip, uint32_t port)
 	return 0;
 }
 
+int connect_to_server_udp(int *socketfd, const char *server_ip, uint32_t port)
+{
+	struct sockaddr_in dest = {
+		.sin_family = AF_INET,
+		.sin_port = htons(port),
+	};
+	int tmp;
+
+	dest.sin_addr.s_addr = inet_addr(server_ip);
+
+	tmp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (tmp < 0)
+		return errno;
+
+	if (connect(tmp, (struct sockaddr *)&dest, sizeof(dest))) {
+		close(tmp);
+		return errno;
+	}
+
+	*socketfd = tmp;
+	return 0;
+}
+
 int connect_to_server_from_list(int *socketfd,
 				const char *server_ip_list[],
 				int list_size,
